@@ -55,43 +55,14 @@
       margin-bottom: 0.75rem;
     }
   </style>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js');
-      });
-    }
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      const installBtn = document.getElementById('installBtn');
-      if (installBtn) installBtn.style.display = 'block';
-    });
-    window.addEventListener('load', () => {
-      const installBtn = document.getElementById('installBtn');
-      if (installBtn) {
-        installBtn.addEventListener('click', async () => {
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-              installBtn.style.display = 'none';
-            }
-            deferredPrompt = null;
-          }
-        });
-      }
-    });
-  </script>
 </head>
 <body>
   <div style="max-width: 500px; margin: auto;">
     <h1>Liner Design Calculator</h1>
     <label for="diameter">Installed Diameter (inches)</label>
-    <input type="number" id="diameter" value="24" step="0.1" />
+    <input type="number" id="diameter" step="0.1" />
     <label for="totalGauge">Total Liner Gauge (mm)</label>
-    <input type="number" id="totalGauge" value="12" step="0.1" />
+    <input type="number" id="totalGauge" step="0.1" />
     <label for="coating">Coating Type</label>
     <select id="coating">
       <option value="TPU">TPU</option>
@@ -101,12 +72,47 @@
     <select id="join">
       <option value="sew">Sew</option>
       <option value="weld">Weld</option>
+      <option value="glass">Welded Glass</option>
     </select>
     <button onclick="runCalc()">Calculate</button>
     <button id="installBtn" style="display:none; background-color:#10b981; margin-top:0.5rem;">Install App</button>
     <div class="result" id="output"></div>
   </div>
+
   <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js');
+  });
+}
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  window.addEventListener('load', () => {
+    const installBtn = document.getElementById('installBtn');
+    if (installBtn) installBtn.style.display = 'block';
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          installBtn.style.display = 'none';
+        }
+        deferredPrompt = null;
+      }
+    });
+  });
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById("diameter").addEventListener("input", runCalc);
+  document.getElementById("totalGauge").addEventListener("input", runCalc);
+  document.getElementById("coating").addEventListener("change", runCalc);
+  document.getElementById("join").addEventListener("change", runCalc);
+});
+
 function getFeltShrinkFactor(diameter, layerIndex) {
   switch (layerIndex) {
     case 0: return -0.000981 * diameter + 0.951465;
@@ -121,12 +127,14 @@ function determineFeltLayers(feltOnlyGauge) {
   const available = [6.0, 4.5, 4.0, 3.0, 2.0];
   const stack = [];
   let remaining = feltOnlyGauge;
+
   for (let i = 0; i < available.length; i++) {
     while (remaining >= available[i] - 0.01) {
       stack.push(available[i]);
       remaining -= available[i];
     }
   }
+
   return stack.sort((a, b) => a - b);
 }
 
@@ -143,7 +151,7 @@ function calculateLayflats(D_final, totalGauge, coatingType, joinType) {
   feltGauges.forEach((gauge, i) => {
     const circ = Math.PI * D * mmPerIn;
     const F = getFeltShrinkFactor(D_final, i);
-    const overlap = (joinType === 'weld' && D_final > 15 ? 50 : 0);
+    const overlap = (joinType === 'weld' ? (D_final <= 15 ? 25 : 50) : (joinType === 'glass' ? 50 : 0));
     const W = circ * F;
     const W_with_overlap = W + overlap;
     const g_eff = gauge * F;
@@ -174,8 +182,12 @@ function runCalc() {
   const coating = document.getElementById("coating").value;
   const join = document.getElementById("join").value;
 
-  const result = calculateLayflats(diameter, totalGauge, coating, join);
+  if (isNaN(diameter) || isNaN(totalGauge)) {
+    document.getElementById("output").innerHTML = "";
+    return;
+  }
 
+  const result = calculateLayflats(diameter, totalGauge, coating, join);
   const output = document.getElementById("output");
   let html = `<strong>Results</strong><br>
     Total Layers: ${result.feltResults.length + 1}<br>
