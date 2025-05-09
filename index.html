@@ -1,2 +1,195 @@
 <!DOCTYPE html>
-<html><head><title>Liner Design Calculator</title></head><body>App content</body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Liner Design Calculator</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1e293b;
+      color: #f1f5f9;
+      margin: 0;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    label {
+      margin-top: 1rem;
+      display: block;
+    }
+    input, select, button {
+      width: 100%;
+      max-width: 300px;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+      margin-bottom: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid #94a3b8;
+      background-color: #334155;
+      color: #f1f5f9;
+      display: block;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #3b82f6;
+      border: none;
+      cursor: pointer;
+    }
+    .result {
+      background-color: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-top: 1.5rem;
+      color: #e2e8f0;
+      width: 100%;
+      max-width: 300px;
+      box-sizing: border-box;
+    }
+    .result strong {
+      display: block;
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+  </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js');
+      });
+    }
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      const installBtn = document.getElementById('installBtn');
+      if (installBtn) installBtn.style.display = 'block';
+    });
+    window.addEventListener('load', () => {
+      const installBtn = document.getElementById('installBtn');
+      if (installBtn) {
+        installBtn.addEventListener('click', async () => {
+          if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            if (outcome === 'accepted') {
+              installBtn.style.display = 'none';
+            }
+            deferredPrompt = null;
+          }
+        });
+      }
+    });
+  </script>
+</head>
+<body>
+  <div style="max-width: 500px; margin: auto;">
+    <h1>Liner Design Calculator</h1>
+    <label for="diameter">Installed Diameter (inches)</label>
+    <input type="number" id="diameter" value="24" step="0.1" />
+    <label for="totalGauge">Total Liner Gauge (mm)</label>
+    <input type="number" id="totalGauge" value="12" step="0.1" />
+    <label for="coating">Coating Type</label>
+    <select id="coating">
+      <option value="TPU">TPU</option>
+      <option value="TPO">TPO</option>
+    </select>
+    <label for="join">Felt Join Type</label>
+    <select id="join">
+      <option value="sew">Sew</option>
+      <option value="weld">Weld</option>
+    </select>
+    <button onclick="runCalc()">Calculate</button>
+    <button id="installBtn" style="display:none; background-color:#10b981; margin-top:0.5rem;">Install App</button>
+    <div class="result" id="output"></div>
+  </div>
+  <script>
+function getFeltShrinkFactor(diameter, layerIndex) {
+  switch (layerIndex) {
+    case 0: return -0.000981 * diameter + 0.951465;
+    case 1: return  0.000928 * diameter + 0.947715;
+    case 2: return  0.008332 * diameter + 0.499900;
+    case 3: return  0.008334 * diameter + 0.500050;
+    default: return 1.0;
+  }
+}
+
+function determineFeltLayers(feltOnlyGauge) {
+  const available = [6.0, 4.5, 4.0, 3.0, 2.0];
+  const stack = [];
+  let remaining = feltOnlyGauge;
+  for (let i = 0; i < available.length; i++) {
+    while (remaining >= available[i] - 0.01) {
+      stack.push(available[i]);
+      remaining -= available[i];
+    }
+  }
+  return stack.sort((a, b) => a - b);
+}
+
+function calculateLayflats(D_final, totalGauge, coatingType, joinType) {
+  const mmPerIn = 25.4;
+  const coatingGauge = 3.0;
+  const shrinkCoat = coatingType === "TPU" ? 0.92 : 0.94;
+  const feltGauge = totalGauge - coatingGauge;
+  const feltGauges = determineFeltLayers(feltGauge);
+
+  let D = D_final;
+  const feltResults = [];
+
+  feltGauges.forEach((gauge, i) => {
+    const circ = Math.PI * D * mmPerIn;
+    const F = getFeltShrinkFactor(D_final, i);
+    const overlap = (joinType === 'weld' && D_final > 15 ? 50 : 0);
+    const W = circ * F;
+    const W_with_overlap = W + overlap;
+    const g_eff = gauge * F;
+    D = W / (Math.PI * mmPerIn) + (2 * g_eff / mmPerIn);
+    feltResults.push({
+      label: `${i + 1}st Inner`,
+      gauge,
+      shrink: F,
+      width: Math.round(W_with_overlap)
+    });
+  });
+
+  const D_mm = D_final * mmPerIn;
+  const Wcoat = (D_mm - 2 * totalGauge) * shrinkCoat * Math.PI;
+  const coatedWidth = Math.round(Wcoat);
+
+  return {
+    feltResults,
+    coatedWidth,
+    totalGauge,
+    shrinkCoat
+  };
+}
+
+function runCalc() {
+  const diameter = parseFloat(document.getElementById("diameter").value);
+  const totalGauge = parseFloat(document.getElementById("totalGauge").value);
+  const coating = document.getElementById("coating").value;
+  const join = document.getElementById("join").value;
+
+  const result = calculateLayflats(diameter, totalGauge, coating, join);
+
+  const output = document.getElementById("output");
+  let html = `<strong>Results</strong><br>
+    Total Layers: ${result.feltResults.length + 1}<br>
+    Total Gauge: ${result.totalGauge} mm<br>
+    Downsizing (Coated Layer): ${result.shrinkCoat.toFixed(4)}<br>
+    Coated Width: ${result.coatedWidth} mm<br>`;
+
+  result.feltResults.forEach((layer, i) => {
+    const label = `${i + 1}${['st','nd','rd'][i] || 'th'} Inner`;
+    html += `${label}: ${layer.width} mm (${layer.gauge} mm)<br>`;
+  });
+
+  output.innerHTML = html;
+}
+  </script>
+</body>
+</html>
