@@ -60,6 +60,14 @@
         const el = document.getElementById(id);
         if (el) el.addEventListener((id==='diameter'||id==='totalGauge')?'input':'change', runCalc);
       });
+      const diameterInput = document.getElementById('diameter');
+      const joinSelect = document.getElementById('join');
+      diameterInput.addEventListener('input', () => {
+        if (parseFloat(diameterInput.value) > 24 && joinSelect.value !== 'sew') {
+          joinSelect.value = 'weld';
+        }
+        runCalc();
+      });
     });
     function getFeltShrinkFactor(d, i, join, coat) {
       const sc = coat==='TPU'?0.92:
@@ -77,51 +85,40 @@
     }
     function determineFeltLayers(gauge) {
       const avail=[2.0,3.0,4.0,4.5,6.0]; let best=[], bestDiff=Infinity, minL=Infinity;
-      function search(curr,sum,idx) {
-        const diff=Math.abs(sum-gauge);
-        if(diff<bestDiff||(diff===bestDiff&&curr.length<minL)) { bestDiff=diff; minL=curr.length; best=curr.slice(); }
+      function search(curr,sum,idx){const diff=Math.abs(sum-gauge);
+        if(diff<bestDiff||(diff===bestDiff&&curr.length<minL)){bestDiff=diff;minL=curr.length;best=curr.slice();}
         if(curr.length>=avail.length) return;
         for(let j=idx;j<avail.length;j++) search([...curr,avail[j]],sum+avail[j],j);
       }
-      search([],0,0);
-      return best.sort((a,b)=>a-b);
+      search([],0,0);return best.sort((a,b)=>a-b);
     }
-    function calculateLayflats(Din,totG,coat,join) {
+    function calculateLayflats(Din, totG, coat, join) {
       const mm=25.4;
       const coatG = coat==='TPO2.0'?2.0:3.0;
       const sc = coat==='TPU'?0.92:
                  coat==='Potable'?0.96:
                  coat==='TPO2.0'?0.92:
                  coat==='UV'?0.94:0.94;
-      const cw = Math.round((Din*mm - 2*totG)*sc*Math.PI);
+      const cw = Math.round((Din*mm - 2*totG) * sc * Math.PI);
       const fg = totG - coatG;
-      const allowedGauge = Din>36 ? fg + 1 : fg;
+      const allowedGauge = Din > 36 ? fg + 1 : fg;
       const fgs = determineFeltLayers(allowedGauge);
       const results = [];
       fgs.forEach((g, i) => {
         let width;
         if (i === 0) {
           const base = (Din*mm - 2*g) * Math.PI;
-          let F = getFeltShrinkFactor(Din, i, join, coat);
-          if (join === 'weld' && coat === 'TPU') {
-            F = 4467 / base;
-          }
-          const ov = join==='weld' ? (Din<=15?25:50) : (join==='glass'?50:0);
+          const F = getFeltShrinkFactor(Din, i, join, coat);
+          const ov = join==='weld' ? (Din<=15 ? 25 : 50) : (join==='glass' ? 50 : 0);
           width = Math.round(base * F + ov);
         } else {
           const sumAhead = fgs.slice(i+1).reduce((s,v)=>s+v,0) + coatG;
-          const ov = join==='weld' ? (Din<=15?25:50) : (join==='glass'?50:0);
+          const ov = join==='weld' ? (Din<=15 ? 25 : 50) : (join==='glass' ? 50 : 0);
           width = Math.round(cw - 2 * sumAhead * Math.PI + ov);
         }
         results.push({ label: `${i+1}${['st','nd','rd'][i]||'th'} Inner`, gauge: g, width });
       });
-      return {
-        feltResults: results,
-        coatedWidth: cw,
-        coatingGauge: coatG,
-        totalGauge: totG,
-        shrinkCoat: sc
-      };
+      return { feltResults: results, coatedWidth: cw, coatingGauge: coatG, totalGauge: totG, shrinkCoat: sc };
     }
     function runCalc() {
       const D = parseFloat(document.getElementById('diameter').value);
@@ -135,9 +132,7 @@
                  `Total Gauge: ${r.totalGauge} mm<br>` +
                  `Downsizing (Coated Layer): ${(r.shrinkCoat*100).toFixed(0)}%<br>` +
                  `Coated Width: ${r.coatedWidth} mm (${r.coatingGauge} mm)<br>`;
-      r.feltResults.slice().reverse().forEach(l => {
-        html += `${l.label}: ${l.width} mm (${l.gauge} mm)<br>`;
-      });
+      r.feltResults.slice().reverse().forEach(l => { html += `${l.label}: ${l.width} mm (${l.gauge} mm)<br>`; });
       out.innerHTML = html;
     }
   </script>
