@@ -63,7 +63,7 @@
     });
     function getFeltShrinkFactor(d, i, join, coat) {
       const sc = coat==='TPU'?0.92:coat==='Potable'?0.96:coat==='TPO2.0'?0.92:coat==='UV'?0.94:0.94;
-      if (join==='sew' || join==='weld') return sc;
+      if (join==='sew' || join==='weld' || join==='glass') return sc;
       switch(i) {
         case 0: return -0.000981*d + 0.951465;
         case 1: return  0.000928*d + 0.947715;
