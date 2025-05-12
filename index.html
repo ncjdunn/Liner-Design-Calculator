@@ -63,10 +63,13 @@
     <input type="number" id="diameter" step="0.1" />
     <label for="totalGauge">Total Liner Gauge (mm)</label>
     <input type="number" id="totalGauge" step="0.1" />
-    <label for="coating">Coating Type</label>
+    <label for="coating">Liner Type</label>
     <select id="coating">
-      <option value="TPU">TPU</option>
-      <option value="TPO">TPO</option>
+      <option value="TPU">PU</option>
+      <option value="Potable">Potable</option>
+      <option value="TPO">TPO / Envirocure</option>
+      <option value="UV">UV</option>
+      <option value="TPO2.0">TPO (2.0 mm)</option>
     </select>
     <label for="join">Felt Join Type</label>
     <select id="join">
@@ -124,24 +127,36 @@ function getFeltShrinkFactor(diameter, layerIndex) {
 }
 
 function determineFeltLayers(feltOnlyGauge) {
-  const available = [6.0, 4.5, 4.0, 3.0, 2.0];
-  const stack = [];
-  let remaining = feltOnlyGauge;
+  const available = [2.0, 3.0, 4.0, 4.5, 6.0];
+  let bestCombo = [];
+  let minLayers = Infinity;
+  let closestMatch = Infinity;
 
-  for (let i = 0; i < available.length; i++) {
-    while (remaining >= available[i] - 0.01) {
-      stack.push(available[i]);
-      remaining -= available[i];
+  function findCombos(current, sum, index) {
+    if (sum > feltOnlyGauge + 0.01 || current.length > 5) return;
+    if (Math.abs(sum - feltOnlyGauge) < closestMatch ||
+        (Math.abs(sum - feltOnlyGauge) === closestMatch && current.length < minLayers)) {
+      closestMatch = Math.abs(sum - feltOnlyGauge);
+      minLayers = current.length;
+      bestCombo = [...current];
+    }
+    for (let i = index; i < available.length; i++) {
+      findCombos([...current, available[i]], sum + available[i], i);
     }
   }
 
-  return stack.sort((a, b) => a - b);
+  findCombos([], 0, 0);
+  return bestCombo.sort((a, b) => a - b);
 }
 
 function calculateLayflats(D_final, totalGauge, coatingType, joinType) {
   const mmPerIn = 25.4;
-  const coatingGauge = 3.0;
-  const shrinkCoat = coatingType === "TPU" ? 0.92 : 0.94;
+  const coatingGauge = (coatingType === "TPO2.0" ? 2.0 : 3.0);
+  const shrinkCoat =
+    coatingType === "TPU" ? 0.92 :
+    coatingType === "Potable" ? 0.96 :
+    coatingType === "UV" ? 0.94 :
+    0.94;
   const feltGauge = totalGauge - coatingGauge;
   const feltGauges = determineFeltLayers(feltGauge);
 
@@ -192,7 +207,7 @@ function runCalc() {
   let html = `<strong>Results</strong><br>
     Total Layers: ${result.feltResults.length + 1}<br>
     Total Gauge: ${result.totalGauge} mm<br>
-    Downsizing (Coated Layer): ${result.shrinkCoat.toFixed(4)}<br>
+    Downsizing (Coated Layer): ${(result.shrinkCoat * 100).toFixed(0)}%<br>
     Coated Width: ${result.coatedWidth} mm<br>`;
 
   result.feltResults.forEach((layer, i) => {
