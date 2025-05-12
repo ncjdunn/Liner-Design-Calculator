@@ -47,19 +47,23 @@
     let deferredPrompt;
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault(); deferredPrompt = e;
-      window.addEventListener('load', () => {
-        const btn = document.getElementById('installBtn'); if (btn) btn.style.display = 'block';
+      const btn = document.getElementById('installBtn'); if (btn) btn.style.display = 'block';
+      btn.addEventListener('click', async () => {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') btn.style.display = 'none';
+        deferredPrompt = null;
       });
     });
     window.addEventListener('DOMContentLoaded', () => {
       ['diameter','totalGauge','coating','join'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.addEventListener(id==='diameter'||id==='totalGauge'?'input':'change', runCalc);
+        if (el) el.addEventListener((id==='diameter'||id==='totalGauge')?'input':'change', runCalc);
       });
     });
     function getFeltShrinkFactor(d, i, join, coat) {
       const sc = coat==='TPU'?0.92:coat==='Potable'?0.96:coat==='TPO2.0'?0.92:coat==='UV'?0.94:0.94;
-      if (join==='sew') return sc;
+      if (join==='sew' || join==='weld') return sc;
       switch(i) {
         case 0: return -0.000981*d + 0.951465;
         case 1: return  0.000928*d + 0.947715;
