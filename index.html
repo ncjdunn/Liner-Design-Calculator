@@ -155,6 +155,7 @@ function calculateLayflats(D_final, totalGauge, coatingType, joinType) {
   const shrinkCoat =
     coatingType === "TPU" ? 0.92 :
     coatingType === "Potable" ? 0.96 :
+    coatingType === "TPO2.0" ? 0.92 :
     coatingType === "UV" ? 0.94 :
     0.94;
   const feltGauge = totalGauge - coatingGauge;
