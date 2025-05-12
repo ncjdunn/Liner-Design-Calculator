@@ -1,70 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Liner Design Calculator</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #1e293b;
-      color: #f1f5f9;
-      margin: 0;
-      padding: 2rem;
-    }
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-    label {
-      margin-top: 1rem;
-      display: block;
-    }
-    input, select, button {
-      width: 100%;
-      max-width: 300px;
-      padding: 0.5rem;
-      margin-top: 0.25rem;
-      margin-bottom: 0.75rem;
-      border-radius: 0.375rem;
-      border: 1px solid #94a3b8;
-      background-color: #334155;
-      color: #f1f5f9;
-      display: block;
-      box-sizing: border-box;
-    }
-    button {
-      background-color: #3b82f6;
-      border: none;
-      cursor: pointer;
-    }
-    .result {
-      background-color: #0f172a;
-      border-radius: 0.5rem;
-      padding: 1rem;
-      margin: 1.5rem auto;
-      color: #e2e8f0;
-      width: 100%;
-      max-width: 300px;
-      box-sizing: border-box;
-      text-align: center;
-    }
-    .result strong {
-      display: block;
-      font-size: 1.25rem;
-      margin-bottom: 0.75rem;
-    }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#1e293b; color:#f1f5f9; margin:0; padding:2rem; }
+    h1 { font-size:2rem; margin-bottom:1.5rem; text-align:center; }
+    label { margin-top:1rem; display:block; }
+    input, select, button { width:100%; max-width:300px; padding:0.5rem; margin:0.25rem 0 0.75rem; border-radius:0.375rem; border:1px solid #94a3b8; background:#334155; color:#f1f5f9; box-sizing:border-box; }
+    button { background:#3b82f6; border:none; cursor:pointer; }
+    .result { background:#0f172a; border-radius:0.5rem; padding:1rem; margin:1.5rem auto; color:#e2e8f0; width:100%; max-width:300px; box-sizing:border-box; text-align:center; }
+    .result strong { display:block; font-size:1.25rem; margin-bottom:0.75rem; }
   </style>
 </head>
 <body>
-  <div style="max-width: 500px; margin: auto; display: flex; flex-direction: column; align-items: center;">
+  <div style="max-width:500px; margin:auto; display:flex; flex-direction:column; align-items:center;">
     <h1>Liner Design Calculator</h1>
     <label for="diameter">Installed Diameter (inches)</label>
-    <input type="number" id="diameter" step="0.1" />
+    <input type="number" id="diameter" step="0.1">
     <label for="totalGauge">Total Liner Gauge (mm)</label>
-    <input type="number" id="totalGauge" step="0.1" />
+    <input type="number" id="totalGauge" step="0.1">
     <label for="coating">Liner Type</label>
     <select id="coating">
       <option value="TPU">PU</option>
@@ -80,114 +37,89 @@
       <option value="glass">Welded Glass</option>
     </select>
     <button onclick="runCalc()">Calculate</button>
-    <button id="installBtn" style="display:none; background-color:#10b981; margin-top:0.5rem;">Install App</button>
+    <button id="installBtn" style="display:none; background:#10b981; margin-top:0.5rem;">Install App</button>
     <div class="result" id="output"></div>
   </div>
-
   <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js');
-  });
-}
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault(); deferredPrompt = e;
-  window.addEventListener('load', () => {
-    const btn = document.getElementById('installBtn');
-    if (btn) btn.style.display = 'block';
-  });
-});
-window.addEventListener('DOMContentLoaded', () => {
-  ['diameter','totalGauge','coating','join'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener(id==='diameter'||id==='totalGauge'?'input':'change', runCalc);
-  });
-});
-
-function getFeltShrinkFactor(d, i, joinType, coatingType) {
-  // Determine coated-layer shrink factor
-  const shrinkCoat =
-    coatingType === "TPU" ? 0.92 :
-    coatingType === "Potable" ? 0.96 :
-    coatingType === "TPO2.0" ? 0.92 :
-    coatingType === "UV" ? 0.94 :
-    0.94;
-  // Apply coated shrink only for sewn liners
-  if (joinType === 'sew') {
-    return shrinkCoat;
-  }
-  // Otherwise use original layer-specific shrink logic
-  switch (i) {
-    case 0: return -0.000981 * d + 0.951465;
-    case 1: return  0.000928 * d + 0.947715;
-    case 2: return  0.008332 * d + 0.499900;
-    case 3: return  0.008334 * d + 0.500050;
-    default: return 1.0;
-  }
-}
-
-function determineFeltLayers(feltOnlyGauge) {
-  const available = [2.0,3.0,4.0,4.5,6.0];
-  let best = [], minL = Infinity, closest = Infinity;
-  function find(curr, sum, index) {
-    if (sum > feltOnlyGauge + 0.01 || curr.length > 5) return;
-    const diff = Math.abs(sum - feltOnlyGauge);
-    if (diff < closest || (diff === closest && curr.length < minL)) {
-      closest = diff; minL = curr.length; best = [...curr];
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js'));
     }
-    for (let j = index; j < available.length; j++) {
-      find([...curr, available[j]], sum + available[j], j);
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault(); deferredPrompt = e;
+      window.addEventListener('load', () => {
+        const btn = document.getElementById('installBtn'); if (btn) btn.style.display = 'block';
+      });
+    });
+    window.addEventListener('DOMContentLoaded', () => {
+      ['diameter','totalGauge','coating','join'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener(id==='diameter'||id==='totalGauge'?'input':'change', runCalc);
+      });
+    });
+    function getFeltShrinkFactor(d, i, join, coat) {
+      const sc = coat==='TPU'?0.92:coat==='Potable'?0.96:coat==='TPO2.0'?0.92:coat==='UV'?0.94:0.94;
+      if (join==='sew') return sc;
+      switch(i) {
+        case 0: return -0.000981*d + 0.951465;
+        case 1: return  0.000928*d + 0.947715;
+        case 2: return  0.008332*d + 0.499900;
+        case 3: return  0.008334*d + 0.500050;
+        default: return 1.0;
+      }
     }
-  }
-  find([], 0, 0);
-  return best.sort((a,b) => a - b);
-}
-
-function calculateLayflats(D_final, totalGauge, coatingType, joinType) {
-  const mmIn = 25.4;
-  const coatingGauge = (coatingType === 'TPO2.0' ? 2.0 : 3.0);
-  const shrinkCoat = (coatingType === 'TPU' ? 0.92 :
-                      coatingType === 'Potable' ? 0.96 :
-                      coatingType === 'TPO2.0' ? 0.92 :
-                      coatingType === 'UV' ? 0.94 : 0.94);
-  const feltGauge = totalGauge - coatingGauge;
-  const feltGauges = determineFeltLayers(feltGauge);
-
-  const feltResults = [];
-  feltGauges.forEach((g, i) => {
-    // Cumulative gauge subtraction from installed diameter
-    const gaugeSum = feltGauges.slice(0, i+1).reduce((sum, val) => sum + val, 0);
-    const base = (D_final * mmIn - 2 * gaugeSum) * Math.PI;
-    const F = getFeltShrinkFactor(D_final, i, joinType, coatingType);
-    const overlap = joinType === 'weld' ? (D_final <= 15 ? 25 : 50) : (joinType === 'glass' ? 50 : 0);
-    const width = Math.round(base * F + overlap);
-    feltResults.push({ label: `${i+1}${['st','nd','rd'][i]||'th'} Inner`, gauge: g, width });
-  });
-
-  const coatedWidth = Math.round((D_final * mmIn - 2 * totalGauge) * shrinkCoat * Math.PI);
-  return { feltResults, coatedWidth, totalGauge, shrinkCoat };
-}
-
-function runCalc() {
-  const D = parseFloat(document.getElementById('diameter').value);
-  const TG = parseFloat(document.getElementById('totalGauge').value);
-  const CT = document.getElementById('coating').value;
-  const JT = document.getElementById('join').value;
-  const output = document.getElementById('output');
-  if (isNaN(D) || isNaN(TG)) {
-    output.innerHTML = '';
-    return;
-  }
-  const res = calculateLayflats(D, TG, CT, JT);
-  let html = `<strong>Results</strong><br>` +
-             `Total Layers: ${res.feltResults.length + 1}<br>` +
-             `Total Gauge: ${res.totalGauge} mm<br>` +
-             `Downsizing (Coated Layer): ${ (res.shrinkCoat * 100).toFixed(0) }%<br>` +
-             `Coated Width: ${res.coatedWidth} mm<br>`;
-  res.feltResults.forEach(l => { html += `${l.label}: ${l.width} mm (${l.gauge} mm)<br>`; });
-  output.innerHTML = html;
-}
+    function determineFeltLayers(gauge) {
+      const avail=[2.0,3.0,4.0,4.5,6.0]; let best=[], minL=Infinity, close=Infinity;
+      function find(curr, sum, idx) {
+        if (sum > gauge + 0.01 || curr.length > 5) return;
+        const d = Math.abs(sum - gauge);
+        if (d < close || (d === close && curr.length < minL)) { close = d; minL = curr.length; best = [...curr]; }
+        for (let j = idx; j < avail.length; j++) find([...curr, avail[j]], sum + avail[j], j);
+      }
+      find([], 0, 0);
+      return best.sort((a, b) => a - b);
+    }
+    function calculateLayflats(Din, totG, coat, join) {
+      const mm = 25.4;
+      const coatG = coat==='TPO2.0'?2.0:3.0;
+      const sc = coat==='TPU'?0.92:coat==='Potable'?0.96:coat==='TPO2.0'?0.92:coat==='UV'?0.94:0.94;
+      const fg = totG - coatG;
+      const fgs = determineFeltLayers(fg);
+      const results = [];
+      fgs.forEach((g, i) => {
+        const sumG = fgs.slice(0, i+1).reduce((s, v) => s + v, 0);
+        const base = (Din * mm - 2 * sumG) * Math.PI;
+        const F = getFeltShrinkFactor(Din, i, join, coat);
+        const sewWidth = Math.round(base * F);
+        let width;
+        if (join === 'weld') {
+          const ov = Din <= 15 ? 25 : 50;
+          width = sewWidth + ov;
+        } else if (join === 'glass') {
+          width = sewWidth + 50;
+        } else {
+          width = sewWidth;
+        }
+        results.push({ label: `${i+1}${['st','nd','rd'][i]||'th'} Inner`, gauge: g, width });
+      });
+      const cw = Math.round((Din * mm - 2 * totG) * sc * Math.PI);
+      return { feltResults: results, coatedWidth: cw, totalGauge: totG, shrinkCoat: sc };
+    }
+    function runCalc() {
+      const D = parseFloat(document.getElementById('diameter').value);
+      const TG = parseFloat(document.getElementById('totalGauge').value);
+      const CT = document.getElementById('coating').value;
+      const JT = document.getElementById('join').value;
+      const out = document.getElementById('output');
+      if (isNaN(D) || isNaN(TG)) { out.innerHTML = ''; return; }
+      const r = calculateLayflats(D, TG, CT, JT);
+      let html = `<strong>Results</strong><br>Total Layers: ${r.feltResults.length+1}<br>` +
+                 `Total Gauge: ${r.totalGauge} mm<br>` +
+                 `Downsizing (Coated Layer): ${(r.shrinkCoat*100).toFixed(0)}%<br>` +
+                 `Coated Width: ${r.coatedWidth} mm<br>`;
+      r.feltResults.forEach(l => { html += `${l.label}: ${l.width} mm (${l.gauge} mm)<br>`; });
+      out.innerHTML = html;
+    }
   </script>
 </body>
 </html>
